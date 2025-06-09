@@ -8,6 +8,7 @@ import { MonitorScreen } from './src/screens/MonitorScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SettingsProvider } from './src/contexts/SettingsContext';
 import { WebSocketProvider } from './src/contexts/WebSocketContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 
 // Lock screen orientation to portrait
 ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
@@ -17,46 +18,48 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <SafeAreaProvider>
-      <SettingsProvider>
-        <WebSocketProvider>
-          <NavigationContainer>
-            <Tab.Navigator
-              screenOptions={({ route }) => ({
-                tabBarIcon: ({ focused, color, size }) => {
-                  let iconName: keyof typeof Ionicons.glyphMap;
+      <ThemeProvider>
+        <SettingsProvider>
+          <WebSocketProvider>
+            <NavigationContainer>
+              <Tab.Navigator
+                screenOptions={({ route }) => ({
+                  tabBarIcon: ({ focused, color, size }) => {
+                    let iconName: keyof typeof Ionicons.glyphMap;
 
-                  if (route.name === 'Monitor') {
-                    iconName = focused ? 'pulse' : 'pulse-outline';
-                  } else if (route.name === 'Settings') {
-                    iconName = focused ? 'settings' : 'settings-outline';
-                  } else {
-                    iconName = 'help-circle-outline';
-                  }
+                    if (route.name === 'Monitor') {
+                      iconName = focused ? 'pulse' : 'pulse-outline';
+                    } else if (route.name === 'Settings') {
+                      iconName = focused ? 'settings' : 'settings-outline';
+                    } else {
+                      iconName = 'help-circle-outline';
+                    }
 
-                  return <Ionicons name={iconName} size={size} color={color} />;
-                },
-                tabBarActiveTintColor: '#007AFF',
-                tabBarInactiveTintColor: 'gray',
-              })}
-            >
-              <Tab.Screen 
-                name="Monitor" 
-                component={MonitorScreen}
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Tab.Screen 
-                name="Settings" 
-                component={SettingsScreen}
-                options={{
-                  headerShown: false,
-                }}
-              />
-            </Tab.Navigator>
-          </NavigationContainer>
-        </WebSocketProvider>
-      </SettingsProvider>
+                    return <Ionicons name={iconName} size={size} color={color} />;
+                  },
+                  tabBarActiveTintColor: '#007AFF',
+                  tabBarInactiveTintColor: 'gray',
+                })}
+              >
+                <Tab.Screen 
+                  name="Monitor" 
+                  component={MonitorScreen}
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+                <Tab.Screen 
+                  name="Settings" 
+                  component={SettingsScreen}
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+              </Tab.Navigator>
+            </NavigationContainer>
+          </WebSocketProvider>
+        </SettingsProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

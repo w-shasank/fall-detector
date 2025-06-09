@@ -1,53 +1,117 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_WEBSOCKET_URL, STORAGE_KEYS } from '../constants/config';
+import { DEFAULT_WEBSOCKET_URL, STORAGE_KEYS, DEFAULT_FALL_DETECTION_CONFIG, URL_VALIDATION } from '../constants/config';
+import { AppSettings, UserProfile, FallDetectionConfig } from '../types';
 
 interface SettingsContextType {
-  websocketUrl: string;
-  setWebsocketUrl: (url: string) => Promise<void>;
+  settings: AppSettings;
   isLoading: boolean;
+  updateWebSocketUrl: (url: string) => Promise<void>;
+  updateUserProfile: (profile: UserProfile) => Promise<void>;
+  updateFallDetectionConfig: (config: FallDetectionConfig) => Promise<void>;
+  toggleSound: () => Promise<void>;
+  toggleVibration: () => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+const validateWebSocketUrl = (url: string): boolean => {
+  if (!url.startsWith(URL_VALIDATION.PROTOCOL)) {
+    throw new Error('WebSocket URL must start with ws://');
+  }
+  if (url.length > URL_VALIDATION.MAX_LENGTH) {
+    throw new Error('WebSocket URL is too long');
+  }
+  if (!URL_VALIDATION.PATTERN.test(url)) {
+    throw new Error('Invalid WebSocket URL format');
+  }
+  return true;
+};
+
+const defaultUserProfile: UserProfile = {
+  name: '',
+  age: 0,
+  weight: 0,
+  height: 0,
+  emergencyContacts: [],
+};
+
+const defaultSettings: AppSettings = {
+  serverUrl: DEFAULT_WEBSOCKET_URL,
+  soundEnabled: true,
+  vibrationEnabled: true,
+  darkMode: false,
+  userProfile: defaultUserProfile,
+  fallDetectionConfig: DEFAULT_FALL_DETECTION_CONFIG,
+};
+
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [websocketUrl, setWebsocketUrlState] = useState(DEFAULT_WEBSOCKET_URL);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load saved WebSocket URL on mount
+  // Load saved settings on mount
   useEffect(() => {
-    const loadSavedUrl = async () => {
+    const loadSettings = async () => {
       try {
-        const savedUrl = await AsyncStorage.getItem(STORAGE_KEYS.WEBSOCKET_URL);
-        if (savedUrl) {
-          setWebsocketUrlState(savedUrl);
+        const savedSettings = await AsyncStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
+        if (savedSettings) {
+          setSettings(JSON.parse(savedSettings));
         }
       } catch (error) {
-        console.error('Error loading WebSocket URL:', error);
+        console.error('Error loading settings:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadSavedUrl();
+    loadSettings();
   }, []);
 
-  const setWebsocketUrl = async (url: string) => {
+  const saveSettings = async (newSettings: AppSettings) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.WEBSOCKET_URL, url);
-      setWebsocketUrlState(url);
+      await AsyncStorage.setItem(STORAGE_KEYS.APP_SETTINGS, JSON.stringify(newSettings));
+      setSettings(newSettings);
     } catch (error) {
-      console.error('Error saving WebSocket URL:', error);
+      console.error('Error saving settings:', error);
       throw error;
     }
   };
 
+  const updateWebSocketUrl = async (url: string) => {
+    validateWebSocketUrl(url);
+    await saveSettings({ ...settings, serverUrl: url });
+  };
+
+  const updateUserProfile = async (profile: UserProfile) => {
+    await saveSettings({ ...settings, userProfile: profile });
+  };
+
+  const updateFallDetectionConfig = async (config: FallDetectionConfig) => {
+    await saveSettings({ ...settings, fallDetectionConfig: config });
+  };
+
+  const toggleSound = async () => {
+    await saveSettings({ ...settings, soundEnabled: !settings.soundEnabled });
+  };
+
+  const toggleVibration = async () => {
+    await saveSettings({ ...settings, vibrationEnabled: !settings.vibrationEnabled });
+  };
+
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
+
   return (
     <SettingsContext.Provider
       value={{
-        websocketUrl,
-        setWebsocketUrl,
+        settings,
         isLoading,
+        updateWebSocketUrl,
+        updateUserProfile,
+        updateFallDetectionConfig,
+        toggleSound,
+        toggleVibration,
       }}
     >
       {children}
