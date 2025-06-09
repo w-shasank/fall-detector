@@ -3,20 +3,25 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings } from '../contexts/SettingsContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { URL_VALIDATION } from '../constants/config';
 
 export const SettingsScreen = () => {
-  const { websocketUrl, setWebsocketUrl, isLoading } = useSettings();
-  const { isConnected, error, reconnect } = useWebSocket();
-  const [newUrl, setNewUrl] = useState(websocketUrl);
+  const { settings, updateWebSocketUrl, isLoading } = useSettings();
+  const { isConnected, isConnecting, error, reconnect } = useWebSocket();
+  const [newUrl, setNewUrl] = useState(settings.serverUrl);
   const [isEditing, setIsEditing] = useState(false);
 
   const handleSaveUrl = async () => {
     try {
-      await setWebsocketUrl(newUrl);
+      if (!newUrl.startsWith(URL_VALIDATION.PROTOCOL)) {
+        Alert.alert('Invalid URL', 'WebSocket URL must start with ws://');
+        return;
+      }
+      await updateWebSocketUrl(newUrl);
       setIsEditing(false);
       Alert.alert('Success', 'WebSocket URL updated successfully');
     } catch (err) {
-      Alert.alert('Error', 'Failed to save WebSocket URL');
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save WebSocket URL');
     }
   };
 
@@ -33,15 +38,16 @@ export const SettingsScreen = () => {
                 style={styles.input}
                 value={newUrl}
                 onChangeText={setNewUrl}
-                placeholder="Enter WebSocket URL"
+                placeholder="Enter WebSocket URL (ws://...)"
                 autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="url"
               />
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.button, styles.cancelButton]}
                   onPress={() => {
-                    setNewUrl(websocketUrl);
+                    setNewUrl(settings.serverUrl);
                     setIsEditing(false);
                   }}
                 >
@@ -57,9 +63,9 @@ export const SettingsScreen = () => {
             </>
           ) : (
             <>
-              <Text style={styles.settingItem}>Server URL: {websocketUrl}</Text>
+              <Text style={styles.settingItem}>Server URL: {settings.serverUrl}</Text>
               <Text style={styles.connectionStatus}>
-                Status: {isConnected ? 'Connected' : 'Disconnected'}
+                Status: {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
               </Text>
               {error && <Text style={styles.errorText}>{error}</Text>}
               <TouchableOpacity
@@ -71,6 +77,7 @@ export const SettingsScreen = () => {
               <TouchableOpacity
                 style={[styles.button, styles.reconnectButton]}
                 onPress={reconnect}
+                disabled={isConnecting}
               >
                 <Text style={styles.buttonText}>Reconnect</Text>
               </TouchableOpacity>
@@ -80,13 +87,13 @@ export const SettingsScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Alert Preferences</Text>
-          <Text style={styles.settingItem}>Sound Alerts: Off</Text>
-          <Text style={styles.settingItem}>Vibration: Off</Text>
+          <Text style={styles.settingItem}>Sound Alerts: {settings.soundEnabled ? 'On' : 'Off'}</Text>
+          <Text style={styles.settingItem}>Vibration: {settings.vibrationEnabled ? 'On' : 'Off'}</Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Theme</Text>
-          <Text style={styles.settingItem}>Current: Light</Text>
+          <Text style={styles.settingItem}>Current: {settings.darkMode ? 'Dark' : 'Light'}</Text>
         </View>
       </View>
     </SafeAreaView>

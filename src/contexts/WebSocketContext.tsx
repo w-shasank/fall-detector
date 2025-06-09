@@ -13,6 +13,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(undefin
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastMessageTime, setLastMessageTime] = useState<number | null>(null);
@@ -23,21 +24,25 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const connect = () => {
     try {
+      setIsConnecting(true);
       const ws = new WebSocket(settings.serverUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
         setIsConnected(true);
+        setIsConnecting(false);
         setError(null);
         setReconnectAttempts(0);
       };
 
       ws.onclose = (event) => {
         setIsConnected(false);
+        setIsConnecting(false);
         handleReconnect();
       };
 
       ws.onerror = (event) => {
+        setIsConnecting(false);
         setError('WebSocket connection error');
         console.error('WebSocket error:', event);
       };
@@ -94,6 +99,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <WebSocketContext.Provider
       value={{
         isConnected,
+        isConnecting,
         sensorData,
         error,
         lastMessageTime,

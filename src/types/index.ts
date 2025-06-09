@@ -68,6 +68,7 @@ export interface Theme {
 // WebSocket Types
 export interface WebSocketState {
   isConnected: boolean;
+  isConnecting: boolean;
   error: string | null;
   lastMessageTime: number | null;
   reconnectAttempts: number;

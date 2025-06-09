@@ -55,10 +55,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const savedSettings = await AsyncStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
         if (savedSettings) {
-          setSettings(JSON.parse(savedSettings));
+          const parsedSettings = JSON.parse(savedSettings);
+          // Ensure serverUrl is always present and valid
+          if (!parsedSettings.serverUrl || !validateWebSocketUrl(parsedSettings.serverUrl)) {
+            parsedSettings.serverUrl = DEFAULT_WEBSOCKET_URL;
+          }
+          setSettings(parsedSettings);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
+        // If there's an error loading settings, use defaults
+        setSettings(defaultSettings);
       } finally {
         setIsLoading(false);
       }
@@ -78,8 +85,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateWebSocketUrl = async (url: string) => {
-    validateWebSocketUrl(url);
-    await saveSettings({ ...settings, serverUrl: url });
+    try {
+      validateWebSocketUrl(url);
+      await saveSettings({ ...settings, serverUrl: url });
+    } catch (error) {
+      console.error('Error updating WebSocket URL:', error);
+      throw error;
+    }
   };
 
   const updateUserProfile = async (profile: UserProfile) => {

@@ -1,5 +1,5 @@
 // WebSocket Configuration
-export const DEFAULT_WEBSOCKET_URL = 'ws://192.168.1.100:8080';
+export const DEFAULT_WEBSOCKET_URL = 'ws://192.168.1.73:8080';
 export const WEBSOCKET_RECONNECT_INTERVAL = 3000; // 3 seconds
 export const MAX_RECONNECTION_ATTEMPTS = 5;
 
