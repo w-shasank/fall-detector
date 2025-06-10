@@ -62,16 +62,20 @@ export class WebSocketManagerImpl implements WebSocketManager {
       typeof data.gyroscope.y === 'number' &&
       typeof data.gyroscope.z === 'number';
     
-    const hasTimestamp = typeof data.timestamp === 'number';
+    const hasValidTimestamp = !data.timestamp || typeof data.timestamp === 'number';
     
-    return hasAccelerometer && hasGyroscope && hasTimestamp;
+    return hasAccelerometer && hasGyroscope && hasValidTimestamp;
   }
 
   private handleMessage(event: MessageEvent) {
     try {
       const data = JSON.parse(event.data);
       if (this.validateSensorData(data)) {
-        this.onData?.(data);
+        const sensorData = {
+          ...data,
+          timestamp: data.timestamp || Date.now()
+        };
+        this.onData?.(sensorData);
         this.updateState({ lastMessageTime: Date.now() });
       } else {
         console.warn('Received invalid sensor data format:', data);

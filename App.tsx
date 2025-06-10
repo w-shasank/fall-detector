@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { MonitorScreen } from './src/screens/MonitorScreen';
+import { MonitoringScreen } from './src/screens/MonitoringScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SettingsProvider } from './src/contexts/SettingsContext';
 import { WebSocketProvider } from './src/contexts/WebSocketContext';
@@ -43,7 +43,7 @@ export default function App() {
               >
                 <Tab.Screen 
                   name="Monitor" 
-                  component={MonitorScreen}
+                  component={MonitoringScreen}
                   options={{
                     headerShown: false,
                   }}

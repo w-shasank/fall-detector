@@ -25,7 +25,7 @@ export const SensorGauge: React.FC<SensorGaugeProps> = ({
       toValue: value,
       duration: 500,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [value]);
 
@@ -95,11 +95,15 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 8,
   },
   gaugeContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 8,
+    padding: 8,
   },
   arc: {
     position: 'absolute',
@@ -108,6 +112,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     transformOrigin: 'bottom',
+    borderStyle: 'solid',
   },
   centerCircle: {
     position: 'absolute',

@@ -1,180 +1,294 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { SettingsCard } from '../components/SettingsCard';
 import { URL_VALIDATION } from '../constants/config';
+import Constants from 'expo-constants';
 
-export const SettingsScreen = () => {
-  const { settings, updateWebSocketUrl, isLoading } = useSettings();
-  const { isConnected, isConnecting, error, reconnect } = useWebSocket();
-  const [newUrl, setNewUrl] = useState(settings.serverUrl);
-  const [isEditing, setIsEditing] = useState(false);
+export const SettingsScreen: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
+  const { settings, updateWebSocketUrl, updateUserProfile, toggleSound, toggleVibration } = useSettings();
+  const { isConnected, isConnecting, reconnect } = useWebSocket();
 
-  const handleSaveUrl = async () => {
+  // Form state
+  const [serverUrl, setServerUrl] = useState(settings.serverUrl);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [userProfile, setUserProfile] = useState(settings.userProfile);
+
+  // URL validation
+  const validateUrl = (url: string): boolean => {
+    if (!url) return false;
+    if (!url.startsWith(URL_VALIDATION.PROTOCOL)) return false;
+    if (url.length > URL_VALIDATION.MAX_LENGTH) return false;
+    return URL_VALIDATION.PATTERN.test(url);
+  };
+
+  // Test connection
+  const testConnection = async () => {
+    if (!validateUrl(serverUrl)) {
+      Alert.alert('Invalid URL', 'Please enter a valid WebSocket URL');
+      return;
+    }
+
+    setIsTestingConnection(true);
     try {
-      if (!newUrl.startsWith(URL_VALIDATION.PROTOCOL)) {
-        Alert.alert('Invalid URL', 'WebSocket URL must start with ws://');
-        return;
-      }
-      await updateWebSocketUrl(newUrl);
-      setIsEditing(false);
-      Alert.alert('Success', 'WebSocket URL updated successfully');
-    } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save WebSocket URL');
+      // Create a temporary WebSocket connection
+      const ws = new WebSocket(serverUrl);
+      
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ws.close();
+          reject(new Error('Connection timeout - server did not respond'));
+        }, 10000); // Increased to 10 seconds
+
+        ws.onopen = () => {
+          clearTimeout(timeout);
+          ws.close();
+          resolve(true);
+        };
+
+        ws.onerror = (error) => {
+          clearTimeout(timeout);
+          reject(new Error('Connection failed - server may be unreachable'));
+        };
+
+        ws.onclose = (event) => {
+          if (event.code !== 1000) { // 1000 is normal closure
+            clearTimeout(timeout);
+            reject(new Error(`Connection closed: ${event.reason || 'Unknown reason'}`));
+          }
+        };
+      });
+
+      Alert.alert('Success', 'Connection test successful');
+    } catch (error) {
+      Alert.alert(
+        'Connection Test Failed',
+        error instanceof Error ? error.message : 'Failed to connect to the server'
+      );
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  // Save URL
+  const saveUrl = async () => {
+    if (!validateUrl(serverUrl)) {
+      Alert.alert('Invalid URL', 'Please enter a valid WebSocket URL');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateWebSocketUrl(serverUrl);
+      Alert.alert('Success', 'Server URL updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save server URL');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save user profile
+  const saveUserProfile = async () => {
+    try {
+      await updateUserProfile(userProfile);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save profile');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Settings</Text>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>WebSocket Configuration</Text>
-          {isEditing ? (
-            <>
-              <TextInput
-                style={styles.input}
-                value={newUrl}
-                onChangeText={setNewUrl}
-                placeholder="Enter WebSocket URL (ws://...)"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => {
-                    setNewUrl(settings.serverUrl);
-                    setIsEditing(false);
-                  }}
-                >
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.button, styles.saveButton]}
-                  onPress={handleSaveUrl}
-                >
-                  <Text style={styles.buttonText}>Save</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.settingItem}>Server URL: {settings.serverUrl}</Text>
-              <Text style={styles.connectionStatus}>
-                Status: {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
-              </Text>
-              {error && <Text style={styles.errorText}>{error}</Text>}
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() => setIsEditing(true)}
-              >
-                <Text style={styles.buttonText}>Edit URL</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.reconnectButton]}
-                onPress={reconnect}
-                disabled={isConnecting}
-              >
-                <Text style={styles.buttonText}>Reconnect</Text>
-              </TouchableOpacity>
-            </>
-          )}
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.contentContainer}
+    >
+      {/* Server Configuration */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Server Configuration
+        </Text>
+        <SettingsCard
+          title="Server URL"
+          description="WebSocket server address"
+          icon="server"
+          type="input"
+          value={serverUrl}
+          onValueChange={(value) => setServerUrl(value as string)}
+          placeholder="ws://server:port"
+        />
+        <View style={styles.buttonRow}>
+          <SettingsCard
+            title="Test Connection"
+            icon="checkmark-circle"
+            type="button"
+            onPress={testConnection}
+            disabled={isTestingConnection || !validateUrl(serverUrl)}
+          />
+          <SettingsCard
+            title="Save URL"
+            icon="save"
+            type="button"
+            onPress={saveUrl}
+            disabled={isSaving || !validateUrl(serverUrl)}
+          />
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alert Preferences</Text>
-          <Text style={styles.settingItem}>Sound Alerts: {settings.soundEnabled ? 'On' : 'Off'}</Text>
-          <Text style={styles.settingItem}>Vibration: {settings.vibrationEnabled ? 'On' : 'Off'}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Theme</Text>
-          <Text style={styles.settingItem}>Current: {settings.darkMode ? 'Dark' : 'Light'}</Text>
+        <View style={styles.connectionStatus}>
+          <Ionicons
+            name={isConnected ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={isConnected ? theme.colors.success : theme.colors.error}
+          />
+          <Text style={[styles.statusText, { color: theme.colors.text }]}>
+            {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+          </Text>
         </View>
       </View>
-    </SafeAreaView>
+
+      {/* User Profile */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          User Profile
+        </Text>
+        <SettingsCard
+          title="Name"
+          type="input"
+          value={userProfile.name}
+          onValueChange={(value) => setUserProfile({ ...userProfile, name: value as string })}
+          placeholder="Enter your name"
+        />
+        <SettingsCard
+          title="Age"
+          type="input"
+          value={userProfile.age.toString()}
+          onValueChange={(value) => setUserProfile({ ...userProfile, age: parseInt(value as string) || 0 })}
+          placeholder="Enter your age"
+          keyboardType="numeric"
+        />
+        <SettingsCard
+          title="Weight (kg)"
+          type="input"
+          value={userProfile.weight.toString()}
+          onValueChange={(value) => setUserProfile({ ...userProfile, weight: parseFloat(value as string) || 0 })}
+          placeholder="Enter your weight"
+          keyboardType="numeric"
+        />
+        <SettingsCard
+          title="Height (cm)"
+          type="input"
+          value={userProfile.height.toString()}
+          onValueChange={(value) => setUserProfile({ ...userProfile, height: parseFloat(value as string) || 0 })}
+          placeholder="Enter your height"
+          keyboardType="numeric"
+        />
+        <SettingsCard
+          title="Save Profile"
+          icon="save"
+          type="button"
+          onPress={saveUserProfile}
+        />
+      </View>
+
+      {/* App Preferences */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          App Preferences
+        </Text>
+        <SettingsCard
+          title="Dark Mode"
+          description="Toggle dark/light theme"
+          icon="moon"
+          type="toggle"
+          value={settings.darkMode}
+          onValueChange={async () => {
+            try {
+              await toggleTheme();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to update theme');
+            }
+          }}
+        />
+        <SettingsCard
+          title="Sound Alerts"
+          description="Enable/disable sound notifications"
+          icon="volume-high"
+          type="toggle"
+          value={settings.soundEnabled}
+          onValueChange={toggleSound}
+        />
+        <SettingsCard
+          title="Vibration Alerts"
+          description="Enable/disable vibration notifications"
+          icon="notifications"
+          type="toggle"
+          value={settings.vibrationEnabled}
+          onValueChange={toggleVibration}
+        />
+      </View>
+
+      {/* About Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          About
+        </Text>
+        <SettingsCard
+          title="App Version"
+          description={Constants.expoConfig?.version || '1.0.0'}
+          icon="information-circle"
+          type="button"
+          disabled
+        />
+        <SettingsCard
+          title="Current Server"
+          description={settings.serverUrl}
+          icon="server"
+          type="button"
+          disabled
+        />
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+  contentContainer: {
+    padding: 16,
   },
   section: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  settingItem: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    backgroundColor: '#FF3B30',
-    flex: 1,
-    marginRight: 5,
-  },
-  saveButton: {
-    backgroundColor: '#34C759',
-    flex: 1,
-    marginLeft: 5,
-  },
-  reconnectButton: {
-    backgroundColor: '#5856D6',
+    gap: 8,
   },
   connectionStatus: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
   },
-  errorText: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#FF3B30',
+  statusText: {
+    fontSize: 14,
   },
 }); 

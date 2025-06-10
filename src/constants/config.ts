@@ -42,5 +42,5 @@ export const ALERT_CONFIG = {
 export const URL_VALIDATION = {
   PROTOCOL: 'ws://',
   MAX_LENGTH: 200,
-  PATTERN: /^ws:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(:[0-9]+)?(\/[^\s]*)?$/,
+  PATTERN: /^ws:\/\/[a-zA-Z0-9\-\.]+(:\d+)?(\/[^\s]*)?$/,
 } as const; 
