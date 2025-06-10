@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useSettings } from './SettingsContext';
-import { WEBSOCKET_RECONNECT_INTERVAL, MAX_RECONNECTION_ATTEMPTS } from '../constants/config';
+import { WebSocketManagerImpl } from '../utils/websocket';
 import { SensorData, WebSocketState } from '../types';
 
 interface WebSocketContextType extends WebSocketState {
@@ -12,98 +12,45 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(undefin
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastMessageTime, setLastMessageTime] = useState<number | null>(null);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const [state, setState] = useState<WebSocketState>({
+    isConnected: false,
+    isConnecting: false,
+    error: null,
+    lastMessageTime: null,
+    reconnectAttempts: 0,
+  });
 
-  const connect = () => {
-    try {
-      setIsConnecting(true);
-      const ws = new WebSocket(settings.serverUrl);
-      wsRef.current = ws;
+  const wsManagerRef = useRef<WebSocketManagerImpl | null>(null);
 
-      ws.onopen = () => {
-        setIsConnected(true);
-        setIsConnecting(false);
-        setError(null);
-        setReconnectAttempts(0);
-      };
+  useEffect(() => {
+    // Initialize WebSocket manager
+    wsManagerRef.current = new WebSocketManagerImpl(
+      (newState) => setState(newState),
+      (data) => setSensorData(data)
+    );
 
-      ws.onclose = (event) => {
-        setIsConnected(false);
-        setIsConnecting(false);
-        handleReconnect();
-      };
-
-      ws.onerror = (event) => {
-        setIsConnecting(false);
-        setError('WebSocket connection error');
-        console.error('WebSocket error:', event);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data) as SensorData;
-          setSensorData(data);
-          setLastMessageTime(Date.now());
-        } catch (err) {
-          console.error('Error parsing sensor data:', err);
-          setError('Invalid sensor data format');
-        }
-      };
-    } catch (err) {
-      setError('Failed to create WebSocket connection');
-      console.error('WebSocket connection error:', err);
-    }
-  };
-
-  const handleReconnect = () => {
-    if (reconnectAttempts < MAX_RECONNECTION_ATTEMPTS) {
-      reconnectTimeoutRef.current = setTimeout(() => {
-        setReconnectAttempts(prev => prev + 1);
-        connect();
-      }, WEBSOCKET_RECONNECT_INTERVAL);
-    } else {
-      setError('Maximum reconnection attempts reached');
-    }
-  };
-
-  const reconnect = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-    setReconnectAttempts(0);
-    connect();
-  };
+    return () => {
+      wsManagerRef.current?.disconnect();
+    };
+  }, []);
 
   // Connect when URL changes
   useEffect(() => {
-    connect();
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-    };
+    if (wsManagerRef.current) {
+      wsManagerRef.current.connect(settings.serverUrl);
+    }
   }, [settings.serverUrl]);
+
+  const reconnect = () => {
+    wsManagerRef.current?.reconnect();
+  };
 
   return (
     <WebSocketContext.Provider
       value={{
-        isConnected,
-        isConnecting,
+        ...state,
         sensorData,
-        error,
-        lastMessageTime,
-        reconnectAttempts,
         reconnect,
       }}
     >
