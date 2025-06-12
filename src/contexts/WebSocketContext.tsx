@@ -1,57 +1,119 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSettings } from './SettingsContext';
-import { WebSocketManagerImpl } from '../utils/websocket';
-import { SensorData, WebSocketState } from '../types';
+import { SensorData } from '../types';
+import { createMockWebSocket, devLog, measurePerformance } from '../utils/devTools';
 
-interface WebSocketContextType extends WebSocketState {
+interface WebSocketContextType {
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: string | null;
   sensorData: SensorData | null;
-  reconnect: () => void;
+  connect: () => Promise<void>;
+  disconnect: () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
-  const [state, setState] = useState<WebSocketState>({
-    isConnected: false,
-    isConnecting: false,
-    error: null,
-    lastMessageTime: null,
-    reconnectAttempts: 0,
-  });
+  const [socket, setSocket] = useState<WebSocket | ReturnType<typeof createMockWebSocket> | null>(null);
 
-  const wsManagerRef = useRef<WebSocketManagerImpl | null>(null);
+  const connect = async () => {
+    if (isConnected || isConnecting) return;
 
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      measurePerformance('WebSocket Connection', () => {
+        if (__DEV__) {
+          // Use mock WebSocket in development
+          const mockSocket = createMockWebSocket((data) => {
+            setSensorData(data);
+          });
+          mockSocket.connect();
+          setSocket(mockSocket);
+          setIsConnected(true);
+        } else {
+          // Use real WebSocket in production
+          const ws = new WebSocket(settings.serverUrl);
+          
+          ws.onopen = () => {
+            devLog('WebSocket connected');
+            setIsConnected(true);
+          };
+          
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              setSensorData(data);
+            } catch (err) {
+              devLog('Error parsing WebSocket message:', err);
+            }
+          };
+          
+          ws.onerror = (event) => {
+            devLog('WebSocket error:', event);
+            setError('Connection error occurred');
+            setIsConnected(false);
+          };
+          
+          ws.onclose = () => {
+            devLog('WebSocket disconnected');
+            setIsConnected(false);
+          };
+          
+          setSocket(ws);
+        }
+      });
+    } catch (err) {
+      devLog('Error connecting to WebSocket:', err);
+      setError('Failed to connect to server');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const disconnect = () => {
+    if (socket) {
+      if (__DEV__) {
+        (socket as ReturnType<typeof createMockWebSocket>).disconnect();
+      } else {
+        (socket as WebSocket).close();
+      }
+      setSocket(null);
+      setIsConnected(false);
+    }
+  };
+
+  // Cleanup on unmount
   useEffect(() => {
-    // Initialize WebSocket manager
-    wsManagerRef.current = new WebSocketManagerImpl(
-      (newState) => setState(newState),
-      (data) => setSensorData(data)
-    );
-
     return () => {
-      wsManagerRef.current?.disconnect();
+      disconnect();
     };
   }, []);
 
-  // Connect when URL changes
+  // Reconnect when server URL changes
   useEffect(() => {
-    if (wsManagerRef.current) {
-      wsManagerRef.current.connect(settings.serverUrl);
+    if (isConnected) {
+      disconnect();
+      connect();
     }
   }, [settings.serverUrl]);
-
-  const reconnect = () => {
-    wsManagerRef.current?.reconnect();
-  };
 
   return (
     <WebSocketContext.Provider
       value={{
-        ...state,
+        isConnected,
+        isConnecting,
+        error,
         sensorData,
-        reconnect,
+        connect,
+        disconnect,
       }}
     >
       {children}
