@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useSettings } from '../contexts/SettingsContext';
@@ -26,6 +27,7 @@ export const MonitoringScreen: React.FC = () => {
   const { isConnected, sensorData } = useWebSocket();
   const [isMoving, setIsMoving] = useState(false);
   const [movementColor] = useState(new Animated.Value(0));
+  const insets = useSafeAreaInsets();
 
   // Movement detection logic
   useEffect(() => {
@@ -89,8 +91,15 @@ export const MonitoringScreen: React.FC = () => {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.contentContainer}
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background },
+        { paddingTop: insets.top }
+      ]}
+      contentContainerStyle={[
+        styles.contentContainer,
+        { paddingBottom: insets.bottom }
+      ]}
     >
       {/* Connection Status */}
       <View style={styles.header}>
@@ -137,25 +146,21 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-    paddingHorizontal: 8,
   },
   serverUrl: {
     fontSize: 12,
-    maxWidth: '50%',
   },
   movementContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 24,
-    padding: 16,
+    padding: 12,
     borderRadius: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
@@ -166,23 +171,20 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   movementText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
   },
   sensorContainer: {
-    gap: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
-    paddingHorizontal: 8,
+    marginBottom: 12,
   },
   gaugeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap',
-    gap: 16,
-    paddingHorizontal: 8,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
 }); 

@@ -1,40 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { SettingsCard } from '../components/SettingsCard';
-import { URL_VALIDATION } from '../constants/config';
+import { validateUrl } from '../utils/validation';
 import Constants from 'expo-constants';
 
 export const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { settings, updateWebSocketUrl, updateUserProfile, toggleSound, toggleVibration } = useSettings();
-  const { isConnected, isConnecting, reconnect } = useWebSocket();
+  const { isConnected, connect, disconnect } = useWebSocket();
+  const [serverUrl, setServerUrl] = React.useState(settings.serverUrl);
+  const [isTestingConnection, setIsTestingConnection] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [userProfile, setUserProfile] = React.useState(settings.userProfile);
+  const insets = useSafeAreaInsets();
 
-  // Form state
-  const [serverUrl, setServerUrl] = useState(settings.serverUrl);
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [userProfile, setUserProfile] = useState(settings.userProfile);
-
-  // URL validation
-  const validateUrl = (url: string): boolean => {
-    if (!url) return false;
-    if (!url.startsWith(URL_VALIDATION.PROTOCOL)) return false;
-    if (url.length > URL_VALIDATION.MAX_LENGTH) return false;
-    return URL_VALIDATION.PATTERN.test(url);
-  };
-
-  // Test connection
   const testConnection = async () => {
     if (!validateUrl(serverUrl)) {
       Alert.alert('Invalid URL', 'Please enter a valid WebSocket URL');
@@ -43,46 +33,15 @@ export const SettingsScreen: React.FC = () => {
 
     setIsTestingConnection(true);
     try {
-      // Create a temporary WebSocket connection
-      const ws = new WebSocket(serverUrl);
-      
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          ws.close();
-          reject(new Error('Connection timeout - server did not respond'));
-        }, 10000); // Increased to 10 seconds
-
-        ws.onopen = () => {
-          clearTimeout(timeout);
-          ws.close();
-          resolve(true);
-        };
-
-        ws.onerror = (error) => {
-          clearTimeout(timeout);
-          reject(new Error('Connection failed - server may be unreachable'));
-        };
-
-        ws.onclose = (event) => {
-          if (event.code !== 1000) { // 1000 is normal closure
-            clearTimeout(timeout);
-            reject(new Error(`Connection closed: ${event.reason || 'Unknown reason'}`));
-          }
-        };
-      });
-
+      await connect();
       Alert.alert('Success', 'Connection test successful');
     } catch (error) {
-      Alert.alert(
-        'Connection Test Failed',
-        error instanceof Error ? error.message : 'Failed to connect to the server'
-      );
+      Alert.alert('Error', 'Failed to connect to server');
     } finally {
       setIsTestingConnection(false);
     }
   };
 
-  // Save URL
   const saveUrl = async () => {
     if (!validateUrl(serverUrl)) {
       Alert.alert('Invalid URL', 'Please enter a valid WebSocket URL');
@@ -112,8 +71,15 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.contentContainer}
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background },
+        { paddingTop: insets.top }
+      ]}
+      contentContainerStyle={[
+        styles.contentContainer,
+        { paddingBottom: insets.bottom }
+      ]}
     >
       {/* Server Configuration */}
       <View style={styles.section}>
@@ -152,7 +118,7 @@ export const SettingsScreen: React.FC = () => {
             color={isConnected ? theme.colors.success : theme.colors.error}
           />
           <Text style={[styles.statusText, { color: theme.colors.text }]}>
-            {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+            {isTestingConnection ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
           </Text>
         </View>
       </View>
