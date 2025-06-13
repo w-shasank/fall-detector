@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform, Text, StyleSheet } from 'react-native';
 import { MonitoringScreen } from './src/screens/MonitoringScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SettingsProvider } from './src/contexts/SettingsContext';
@@ -19,10 +19,36 @@ ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
 const Tab = createBottomTabNavigator();
 
 const LoadingFallback = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+  <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color="#007AFF" />
   </View>
 );
+
+const CustomHeader = () => (
+  <SafeAreaView style={styles.headerContainer}>
+    <Text style={styles.headerTitle}>NoFall</Text>
+  </SafeAreaView>
+);
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerContainer: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+});
 
 export default function App() {
   return (
@@ -34,6 +60,7 @@ export default function App() {
               <Suspense fallback={<LoadingFallback />}>
                 <StatusBar style="auto" />
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+                  <CustomHeader />
                   <NavigationContainer>
                     <Tab.Navigator
                       screenOptions={({ route }) => ({
