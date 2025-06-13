@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
@@ -47,8 +48,9 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
             value={value as boolean}
             onValueChange={(newValue) => onValueChange?.(newValue)}
             trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-            thumbColor={theme.colors.background}
+            thumbColor={Platform.OS === 'ios' ? '#fff' : theme.colors.background}
             disabled={disabled}
+            style={styles.switch}
           />
         );
       case 'input':
@@ -58,8 +60,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
               styles.input,
               {
                 color: theme.colors.text,
-                borderColor: theme.colors.border,
-                backgroundColor: theme.colors.background,
+                backgroundColor: theme.colors.cardBackground,
               },
             ]}
             value={value as string}
@@ -75,8 +76,9 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
         return (
           <Ionicons
             name="chevron-forward"
-            size={24}
+            size={20}
             color={theme.colors.textSecondary}
+            style={styles.chevron}
           />
         );
     }
@@ -87,19 +89,20 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
       style={[
         styles.container,
         {
-          backgroundColor: theme.colors.background,
-          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.cardBackground,
         },
+        disabled && styles.disabled,
       ]}
       onPress={onPress}
       disabled={disabled || type === 'input'}
+      activeOpacity={0.7}
     >
       <View style={styles.content}>
         {icon && (
           <View style={styles.iconContainer}>
             <Ionicons
               name={icon}
-              size={24}
+              size={22}
               color={theme.colors.primary}
             />
           </View>
@@ -111,6 +114,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
           {description && (
             <Text
               style={[styles.description, { color: theme.colors.textSecondary }]}
+              numberOfLines={1}
             >
               {description}
             </Text>
@@ -124,10 +128,20 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
-    borderWidth: 1,
-    marginVertical: 4,
+    borderRadius: 16,
+    marginVertical: 6,
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   content: {
     flexDirection: 'row',
@@ -136,6 +150,12 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginRight: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     flex: 1,
@@ -143,16 +163,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
+    marginBottom: 2,
   },
   description: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 13,
+    opacity: 0.8,
   },
   input: {
     height: 40,
-    borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     minWidth: 120,
+    fontSize: 15,
+  },
+  switch: {
+    transform: Platform.OS === 'ios' ? [{ scale: 0.8 }] : [],
+  },
+  chevron: {
+    marginLeft: 8,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 }); 

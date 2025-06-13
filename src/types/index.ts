@@ -51,6 +51,7 @@ export interface ThemeColors {
   secondary: string;
   background: string;
   surface: string;
+  cardBackground: string;
   text: string;
   textSecondary: string;
   error: string;

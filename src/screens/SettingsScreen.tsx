@@ -59,7 +59,6 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
-  // Save user profile
   const saveUserProfile = async () => {
     try {
       await updateUserProfile(userProfile);
@@ -74,17 +73,16 @@ export const SettingsScreen: React.FC = () => {
       style={[
         styles.container,
         { backgroundColor: theme.colors.background },
-        { paddingTop: insets.top }
       ]}
       contentContainerStyle={[
         styles.contentContainer,
-        { paddingBottom: insets.bottom }
+        { paddingBottom: insets.bottom + 16 }
       ]}
     >
       {/* Server Configuration */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Server Configuration
+          Server
         </Text>
         <SettingsCard
           title="Server URL"
@@ -114,7 +112,7 @@ export const SettingsScreen: React.FC = () => {
         <View style={styles.connectionStatus}>
           <Ionicons
             name={isConnected ? 'checkmark-circle' : 'close-circle'}
-            size={20}
+            size={18}
             color={isConnected ? theme.colors.success : theme.colors.error}
           />
           <Text style={[styles.statusText, { color: theme.colors.text }]}>
@@ -126,7 +124,7 @@ export const SettingsScreen: React.FC = () => {
       {/* User Profile */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          User Profile
+          Profile
         </Text>
         <SettingsCard
           title="Name"
@@ -170,7 +168,7 @@ export const SettingsScreen: React.FC = () => {
       {/* App Preferences */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          App Preferences
+          Preferences
         </Text>
         <SettingsCard
           title="Dark Mode"
@@ -239,9 +237,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 12,
+    marginLeft: 4,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -252,9 +251,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    gap: 8,
+    marginLeft: 4,
   },
   statusText: {
+    marginLeft: 6,
     fontSize: 14,
   },
 }); 
