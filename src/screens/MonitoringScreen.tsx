@@ -11,15 +11,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { SensorGauge } from '../components/SensorGauge';
+import { CircularGauge } from '../components/CircularGauge';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { Vector3D } from '../types';
 
 const { width } = Dimensions.get('window');
-const GAUGE_SIZE = width * 0.4;
+const GAUGE_SIZE = width * 0.25; // Smaller size for circular gauges
 
 const MOVEMENT_THRESHOLD = 0.5; // Threshold for movement detection
 const MOVEMENT_CHECK_INTERVAL = 1000; // Check movement every second
+
+// Default sensor data when no connection
+const defaultSensorData: Vector3D = {
+  x: 0,
+  y: 0,
+  z: 0,
+};
 
 export const MonitoringScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -68,19 +75,19 @@ export const MonitoringScreen: React.FC = () => {
 
   const renderSensorGauges = (data: Vector3D, type: 'accelerometer' | 'gyroscope') => (
     <View style={styles.gaugeRow}>
-      <SensorGauge
+      <CircularGauge
         value={data.x}
         label={`${type.charAt(0).toUpperCase()} X`}
         type={type}
         size={GAUGE_SIZE}
       />
-      <SensorGauge
+      <CircularGauge
         value={data.y}
         label={`${type.charAt(0).toUpperCase()} Y`}
         type={type}
         size={GAUGE_SIZE}
       />
-      <SensorGauge
+      <CircularGauge
         value={data.z}
         label={`${type.charAt(0).toUpperCase()} Z`}
         type={type}
@@ -88,6 +95,12 @@ export const MonitoringScreen: React.FC = () => {
       />
     </View>
   );
+
+  // Use default data when not connected
+  const currentSensorData = sensorData || {
+    accelerometer: defaultSensorData,
+    gyroscope: defaultSensorData,
+  };
 
   return (
     <ScrollView
@@ -129,12 +142,12 @@ export const MonitoringScreen: React.FC = () => {
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Accelerometer
         </Text>
-        {sensorData && renderSensorGauges(sensorData.accelerometer, 'accelerometer')}
+        {renderSensorGauges(currentSensorData.accelerometer, 'accelerometer')}
 
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Gyroscope
         </Text>
-        {sensorData && renderSensorGauges(sensorData.gyroscope, 'gyroscope')}
+        {renderSensorGauges(currentSensorData.gyroscope, 'gyroscope')}
       </View>
     </ScrollView>
   );
@@ -186,5 +199,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    paddingHorizontal: 8,
   },
 }); 
