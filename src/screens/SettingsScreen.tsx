@@ -9,6 +9,7 @@ import {
   TextInput,
   Switch,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,12 +22,29 @@ import Constants from 'expo-constants';
 export const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { settings, updateWebSocketUrl, updateUserProfile, toggleSound, toggleVibration } = useSettings();
-  const { isConnected, connect, disconnect } = useWebSocket();
+  const { isConnected, connect, disconnect, isConnecting } = useWebSocket();
   const [serverUrl, setServerUrl] = React.useState(settings.serverUrl);
   const [isTestingConnection, setIsTestingConnection] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [userProfile, setUserProfile] = React.useState(settings.userProfile);
   const insets = useSafeAreaInsets();
+
+  const handleReload = async () => {
+    try {
+      if (!isConnected) {
+        // If not connected, try to connect
+        await connect();
+        Alert.alert('Success', 'Connected successfully');
+      } else {
+        // If already connected, just refresh the connection
+        // by reconnecting without disconnecting first
+        await connect();
+        Alert.alert('Success', 'Connection refreshed successfully');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh connection');
+    }
+  };
 
   const testConnection = async () => {
     if (!validateUrl(serverUrl)) {
@@ -193,15 +211,33 @@ export const SettingsScreen: React.FC = () => {
             <Text style={styles.buttonText}>Save</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.connectionStatus}>
-          <Ionicons
-            name={isConnected ? 'checkmark-circle' : 'close-circle'}
-            size={18}
-            color={isConnected ? theme.colors.success : theme.colors.error}
-          />
-          <Text style={[styles.statusText, { color: theme.colors.text }]}>
-            {isTestingConnection ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
-          </Text>
+        <View style={styles.connectionContainer}>
+          <View style={styles.connectionStatus}>
+            <Ionicons
+              name={isConnected ? 'checkmark-circle' : 'close-circle'}
+              size={18}
+              color={isConnected ? theme.colors.success : theme.colors.error}
+            />
+            <Text style={[styles.statusText, { color: theme.colors.text }]}>
+              {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.reloadButton,
+              { backgroundColor: theme.colors.primary },
+              isConnecting && styles.disabled,
+            ]}
+            onPress={handleReload}
+            disabled={isConnecting}
+          >
+            {isConnecting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="reload" size={20} color="#fff" />
+            )}
+            <Text style={styles.buttonText}>Reload</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -426,15 +462,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  connectionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
   connectionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    marginLeft: 4,
   },
   statusText: {
     marginLeft: 6,
     fontSize: 14,
+  },
+  reloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
   },
   disabled: {
     opacity: 0.5,
