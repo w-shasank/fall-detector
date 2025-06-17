@@ -23,7 +23,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [socket, setSocket] = useState<WebSocket | ReturnType<typeof createMockWebSocket> | null>(null);
 
   const connect = async () => {
-    if (isConnected || isConnecting) return;
+    if (isConnecting) return;
 
     setIsConnecting(true);
     setError(null);
@@ -32,6 +32,9 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       measurePerformance('WebSocket Connection', () => {
         if (__DEV__) {
           // Use mock WebSocket in development
+          if (socket) {
+            (socket as ReturnType<typeof createMockWebSocket>).disconnect();
+          }
           const mockSocket = createMockWebSocket((data) => {
             setSensorData(data);
           });
@@ -40,6 +43,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setIsConnected(true);
         } else {
           // Use real WebSocket in production
+          if (socket) {
+            (socket as WebSocket).close();
+          }
+          
           const ws = new WebSocket(settings.serverUrl);
           
           ws.onopen = () => {
@@ -73,6 +80,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (err) {
       devLog('Error connecting to WebSocket:', err);
       setError('Failed to connect to server');
+      setIsConnected(false);
     } finally {
       setIsConnecting(false);
     }
