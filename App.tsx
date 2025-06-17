@@ -25,8 +25,10 @@ const LoadingFallback = () => (
 );
 
 const CustomHeader = () => (
-  <SafeAreaView style={styles.headerContainer}>
-    <Text style={styles.headerTitle}>NoFall</Text>
+  <SafeAreaView edges={['top']} style={styles.headerContainer}>
+    <View style={styles.headerContent}>
+      <Text style={styles.headerTitle}>NoFall</Text>
+    </View>
   </SafeAreaView>
 );
 
@@ -38,15 +40,19 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: '#e0e0e0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  },
+  headerContent: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '600',
     color: '#007AFF',
+    letterSpacing: 0.5,
   },
 });
 
