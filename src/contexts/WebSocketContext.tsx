@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSettings } from './SettingsContext';
 import { SensorData } from '../types';
-import { createMockWebSocket, devLog, measurePerformance } from '../utils/devTools';
+import { devLog } from '../utils/devTools';
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -20,7 +20,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
-  const [socket, setSocket] = useState<WebSocket | ReturnType<typeof createMockWebSocket> | null>(null);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
 
   const connect = async () => {
     if (isConnecting) return;
@@ -29,54 +29,39 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setError(null);
 
     try {
-      measurePerformance('WebSocket Connection', () => {
-        if (__DEV__) {
-          // Use mock WebSocket in development
-          if (socket) {
-            (socket as ReturnType<typeof createMockWebSocket>).disconnect();
-          }
-          const mockSocket = createMockWebSocket((data) => {
-            setSensorData(data);
-          });
-          mockSocket.connect();
-          setSocket(mockSocket);
-          setIsConnected(true);
-        } else {
-          // Use real WebSocket in production
-          if (socket) {
-            (socket as WebSocket).close();
-          }
-          
-          const ws = new WebSocket(settings.serverUrl);
-          
-          ws.onopen = () => {
-            devLog('WebSocket connected');
-            setIsConnected(true);
-          };
-          
-          ws.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              setSensorData(data);
-            } catch (err) {
-              devLog('Error parsing WebSocket message:', err);
-            }
-          };
-          
-          ws.onerror = (event) => {
-            devLog('WebSocket error:', event);
-            setError('Connection error occurred');
-            setIsConnected(false);
-          };
-          
-          ws.onclose = () => {
-            devLog('WebSocket disconnected');
-            setIsConnected(false);
-          };
-          
-          setSocket(ws);
+      // Close existing connection if any
+      if (socket) {
+        socket.close();
+      }
+
+      const ws = new WebSocket(settings.serverUrl);
+      
+      ws.onopen = () => {
+        devLog('WebSocket connected');
+        setIsConnected(true);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setSensorData(data);
+        } catch (err) {
+          devLog('Error parsing WebSocket message:', err);
         }
-      });
+      };
+      
+      ws.onerror = (event) => {
+        devLog('WebSocket error:', event);
+        setError('Connection error occurred');
+        setIsConnected(false);
+      };
+      
+      ws.onclose = () => {
+        devLog('WebSocket disconnected');
+        setIsConnected(false);
+      };
+      
+      setSocket(ws);
     } catch (err) {
       devLog('Error connecting to WebSocket:', err);
       setError('Failed to connect to server');
@@ -88,11 +73,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const disconnect = () => {
     if (socket) {
-      if (__DEV__) {
-        (socket as ReturnType<typeof createMockWebSocket>).disconnect();
-      } else {
-        (socket as WebSocket).close();
-      }
+      socket.close();
       setSocket(null);
       setIsConnected(false);
     }
