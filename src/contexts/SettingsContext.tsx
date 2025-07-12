@@ -16,16 +16,11 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 const validateWebSocketUrl = (url: string): boolean => {
-  if (!url.startsWith(URL_VALIDATION.PROTOCOL)) {
-    throw new Error('WebSocket URL must start with ws://');
-  }
-  if (url.length > URL_VALIDATION.MAX_LENGTH) {
-    throw new Error('WebSocket URL is too long');
-  }
-  if (!URL_VALIDATION.PATTERN.test(url)) {
-    throw new Error('Invalid WebSocket URL format');
-  }
-  return true;
+  if (!url) return false;
+  if (!url.startsWith(URL_VALIDATION.PROTOCOL)) return false;
+  if (url.length > URL_VALIDATION.MAX_LENGTH) return false;
+  // More lenient validation for IP addresses and domain names
+  return /^ws:\/\/[a-zA-Z0-9\-\.]+(:\d+)?(\/[^\s]*)?$/.test(url);
 };
 
 const defaultUserProfile: UserProfile = {
@@ -56,15 +51,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const savedSettings = await AsyncStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
         if (savedSettings) {
           const parsedSettings = JSON.parse(savedSettings);
-          // Ensure serverUrl is always present and valid
-          if (!parsedSettings.serverUrl || !validateWebSocketUrl(parsedSettings.serverUrl)) {
+          // Only use default URL if no URL is present
+          if (!parsedSettings.serverUrl) {
             parsedSettings.serverUrl = DEFAULT_WEBSOCKET_URL;
           }
           setSettings(parsedSettings);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
-        // If there's an error loading settings, use defaults
         setSettings(defaultSettings);
       } finally {
         setIsLoading(false);
@@ -86,7 +80,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateWebSocketUrl = async (url: string) => {
     try {
-      validateWebSocketUrl(url);
+      if (!validateWebSocketUrl(url)) {
+        throw new Error('Invalid WebSocket URL format');
+      }
       await saveSettings({ ...settings, serverUrl: url });
     } catch (error) {
       console.error('Error updating WebSocket URL:', error);
@@ -111,7 +107,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   if (isLoading) {
-    return null; // Or a loading spinner
+    return null;
   }
 
   return (
